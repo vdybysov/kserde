@@ -22,7 +22,7 @@ import serde.ext.collectProperties
 import serde.ext.findAnnotation
 import serde.ext.findSerdeAnnotation
 import serde.ext.findSubTypesInfo
-import serde.ext.getSerdeMutable
+import serde.annotation.Mutable
 import serde.ext.isBson
 import serde.ext.isJson
 import serde.ext.readDocument
@@ -48,7 +48,7 @@ class ReadFnGenerator(
         } else {
             cls.findSubTypesInfo()
                 ?.let { generateSubTypes(it, fn, cls) }
-                ?: (cls.annotations.findSerdeAnnotation()?.getSerdeMutable() == true).let { if (it) generateMutable(cls, fn) else null }
+                ?: (cls.annotations.findAnnotation(Mutable::class) != null).let { if (it) generateMutable(cls, fn) else null }
                 ?: generateRegular(cls, fn)
         }
     }

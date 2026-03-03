@@ -2,7 +2,7 @@ package serde.example
 
 import org.bson.BsonReader
 import org.bson.BsonWriter
-import serde.annotation.PropertyExclude
+import serde.annotation.PropertyIgnore
 import serde.annotation.PropertyName
 import serde.annotation.Serde
 import serde.annotation.SubTypes
@@ -73,14 +73,14 @@ class SystemNotification(val code: String) : Notification {
 }
 
 // =============================================================================
-// 4. @PropertyExclude — exclude sensitive or internal fields from serialization
+// 4. @PropertyIgnore — exclude sensitive or internal fields from serialization
 // =============================================================================
 
 @Serde
 data class ApiResponse(
     val requestId: String,
     val payload: String,
-    @PropertyExclude val internalTraceId: String
+    @PropertyIgnore val internalTraceId: String
 )
 
 // =============================================================================

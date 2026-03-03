@@ -2,7 +2,7 @@
 
 **Compile-time BSON/JSON serialization for Kotlin** using [KSP](https://kotlinlang.org/docs/ksp-overview.html). Generates type-safe, reflection-free serialization code for your data classes.
 
-[Release](https://jitpack.io/#vdybysov/kserde)
+
 
 ## Table of Contents
 
@@ -37,6 +37,7 @@ Add the JitPack repository and dependencies:
 ```kotlin
 // settings.gradle.kts
 dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
         mavenCentral()
         maven { url = uri("https://jitpack.io") }
@@ -162,7 +163,7 @@ val json = UserProfileSerde.toJson(profile)
 val restored = UserProfileSerde.fromBson(UserProfileSerde.toBson(profile))
 ```
 
-See the [example](example/) module for more: polymorphism (`@SubTypes`), `@PropertyExclude`, standard types (Instant, Date, BigDecimal), and custom serdes.
+See the [example](example/) module for more: polymorphism (`@SubTypes`), `@PropertyIgnore`, standard types (Instant, Date, BigDecimal), and custom serdes.
 
 ## Annotations Reference
 
@@ -171,10 +172,9 @@ See the [example](example/) module for more: polymorphism (`@SubTypes`), `@Prope
 Marks a class for serialization. The KSP processor generates an `ObjectSerde` implementation.
 
 
-| Parameter | Type        | Default | Description                                                                                            |
-| --------- | ----------- | ------- | ------------------------------------------------------------------------------------------------------ |
-| `with`    | `KClass<*>` |         | Custom serde class. If specified, no code is generated.                                                |
-| `mutable` | `Boolean`   | `false` | Use mutable deserialization (setters) instead of constructor. For classes without primary constructor. |
+| Parameter | Type        | Description                                             |
+| --------- | ----------- | ------------------------------------------------------- |
+| `with`    | `KClass<*>` | Custom serde class. If specified, no code is generated. |
 
 
 ```kotlin
@@ -184,20 +184,25 @@ data class Simple(val x: Int)
 @Serde(with = CustomUserSerde::class)
 data class User(val id: String)
 
-@Serde(mutable = true)
+@Serde
+@Mutable
 class ComplexEntity { var id: String = ""; var name: String = "" }
 ```
+
+### @Mutable
+
+Use mutable deserialization (setters) instead of constructor. For classes without primary constructor. Place alongside `@Serde` on the class.
 
 ### @SubTypes
 
 Defines polymorphic type hierarchy. Used on a parent interface/class; subtypes are resolved by a discriminator property.
 
 
-| Parameter      | Type                   | Default      | Description                            |
-| -------------- | ---------------------- | ------------ | -------------------------------------- |
-| `propertyName` | `String`               | `"type"`     | Name of the discriminator field        |
-| `types`        | `Array<SubTypes.Type>` | —            | List of subtype mappings               |
-| `fallbackType` | `KClass<*>`            | —            | Fallback when discriminator is unknown |
+| Parameter      | Type                   | Default  | Description                            |
+| -------------- | ---------------------- | -------- | -------------------------------------- |
+| `propertyName` | `String`               | `"type"` | Name of the discriminator field        |
+| `types`        | `Array<SubTypes.Type>` | —        | List of subtype mappings               |
+| `fallbackType` | `KClass<*>`            | —        | Fallback when discriminator is unknown |
 
 
 ```kotlin
@@ -243,7 +248,7 @@ data class ApiResponse(
 )
 ```
 
-### @PropertyExclude
+### @PropertyIgnore
 
 Exclude property from serialization.
 
@@ -259,7 +264,7 @@ Exclude property from serialization.
 data class ApiResponse(
     val requestId: String,
     val payload: String,
-    @PropertyExclude val internalTraceId: String  // excluded from BSON/JSON
+    @PropertyIgnore val internalTraceId: String  // excluded from BSON/JSON
 )
 ```
 
@@ -419,7 +424,7 @@ The `example` module demonstrates all major features:
 | `UserProfile`                        | Basic serialization, `@PropertyName`, nested objects, enum, `Map<K, V>` |
 | `UserPreferences` + `CustomIdsSerde` | Custom serde via `@Serde(with = ...)`                                   |
 | `Notification` (Text/Image/System)   | Polymorphism with `@SubTypes` discriminator                             |
-| `ApiResponse`                        | `@PropertyExclude` for sensitive/internal fields                        |
+| `ApiResponse`                        | `@PropertyIgnore` for sensitive/internal fields                         |
 | `TimestampedRecord`                  | Standard types: `Instant`, `Date`, `BigDecimal`                         |
 
 
@@ -429,7 +434,7 @@ Run tests: `./gradlew :example:test`
 
 ```
 kserde/
-├── annotations/    # @Serde, @SubTypes, @PropertyName, etc.
+├── annotations/    # @Serde, @Mutable, @SubTypes, @PropertyName, @PropertyIgnore, etc.
 ├── core/           # Serde interface, SerdeRegistry, built-in serdes
 ├── processor/      # KSP processor (generates ObjectSerde implementations)
 ├── mongo/          # MongoDB CodecProvider integration

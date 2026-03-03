@@ -89,7 +89,7 @@ class SerdeTests : ShouldSpec({
         }
     }
 
-    context("@PropertyExclude") {
+    context("@PropertyIgnore") {
         should("exclude annotated fields from serialization") {
             val response = ApiResponse(
                 requestId = "req-123",

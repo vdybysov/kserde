@@ -15,7 +15,8 @@ import com.google.devtools.ksp.symbol.Nullability
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.ksp.toClassName
 import com.squareup.kotlinpoet.ksp.toTypeName
-import serde.annotation.PropertyExclude
+import serde.annotation.Mutable
+import serde.annotation.PropertyIgnore
 import serde.annotation.PropertyName
 import serde.annotation.ReadOnly
 import serde.annotation.SubTypes
@@ -69,7 +70,7 @@ fun mapProperty(
                     .let { resolver.getClassDeclarationByName(it) }
                     ?.annotations?.findSerdeAnnotation()?.getSerdeWithClassName(),
 
-            ignore = annotations.findAnnotation(PropertyExclude::class).let {
+            ignore = annotations.findAnnotation(PropertyIgnore::class).let {
                 Property.Ignore(
                     json = it?.getArgument<Boolean>("json") == true,
                     bson = it?.getArgument<Boolean>("bson") == true
@@ -119,7 +120,7 @@ fun KSClassDeclaration.collectProperties(resolver: Resolver): List<Property> =
         .toList()
         .let { allProps ->
             when {
-                annotations.findSerdeAnnotation()?.getSerdeMutable() == true -> allProps
+                annotations.findAnnotation(Mutable::class) != null -> allProps
                 primaryConstructor != null -> primaryConstructor!!.parameters.collect(this, resolver)
                 allProps.isNotEmpty() -> findConstructors()
                     .find { it.parameters.size == allProps.size }

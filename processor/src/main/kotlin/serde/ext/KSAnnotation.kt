@@ -23,5 +23,3 @@ fun KSAnnotation.getSerdeWith() = getArgument<KSType>("with")
 
 fun KSAnnotation.getSerdeWithClassName() = getSerdeWith()
     ?.toClassName()
-
-fun KSAnnotation.getSerdeMutable(): Boolean = getArgument<Boolean>("mutable") == true
