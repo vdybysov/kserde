@@ -22,7 +22,8 @@ class WriteCallGenerator(
         fnName: String,
         serdeClassName: ClassName,
         type: KSType,
-        valueArg: CodeBlock
+        valueArg: CodeBlock,
+        valueAlreadyNullChecked: Boolean
     ) {
         val typeArgs = when {
             type.isMap(resolver) -> listOf("{ it.toString() }")
@@ -31,7 +32,8 @@ class WriteCallGenerator(
         } + type.arguments
             .let { if (type.isMap(resolver)) it.drop(1) else it }
             .map { "{ ${generate(FnNames.WRITE, it.type!!.resolve(), CodeBlock.of("it"))} }" }
-        val args = listOf("${valueArg}${type.toNotNullAssertion()}") + typeArgs
+        val notNullAssertion = if (valueAlreadyNullChecked) "" else type.toNotNullAssertion()
+        val args = listOf("${valueArg}$notNullAssertion") + typeArgs
             .let { args ->
                 resolver.getClassDeclarationByName(serdeClassName.canonicalName)
                     ?.findFunction(FnNames.WRITE)

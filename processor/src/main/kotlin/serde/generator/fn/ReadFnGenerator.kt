@@ -140,7 +140,7 @@ class ReadFnGenerator(
                 "return %L(%L)",
                 cls.toClassName(),
                 props.joinToString(", ") {
-                    "${it.name.original}${if (it.nullable) "" else "!!"}"
+                    if (it.nullable) it.name.original else "requireNotNull(${it.name.original})"
                 }
             )
             .build()
@@ -151,7 +151,7 @@ class ReadFnGenerator(
         fn: FunSpec.Builder,
         cls: KSClassDeclaration
     ): FunSpec {
-        val (typePropName, types) = subTypesInfo
+        val (typePropName, _, types, _) = subTypesInfo
         fn.beginControlFlow(
             "val %N = %L.%L(%S)",
             typePropName, VarNames.READER, BsonReaderExtNames.READ_DOCUMENT_FIELD_AND_RESET, typePropName

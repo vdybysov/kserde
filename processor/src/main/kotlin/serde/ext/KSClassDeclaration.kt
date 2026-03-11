@@ -141,6 +141,7 @@ fun KSClassDeclaration.findFunction(fnName: String): KSFunctionDeclaration? = ge
 
 data class SubTypesInfo(
     val propertyName: String,
+    val propertyType: KSType?,
     val types: Map<String, KSType>,
     val fallbackType: KSType?,
 )
@@ -157,8 +158,12 @@ fun KSClassDeclaration.findSubTypesInfo(): SubTypesInfo? =
                 ?: error("@SubTypes requires propertyName")
             val typesArg = annotation.getArgument<List<KSAnnotation>>("types")
                 ?: error("@SubTypes requires types")
+            val propertyType = getAllProperties()
+                .find { it.simpleName.getShortName() == propertyName }
+                ?.type?.resolve()
             SubTypesInfo(
                 propertyName = propertyName,
+                propertyType = propertyType,
                 types = typesArg.associate {
                     val name = it.getArgument<String>("name")
                         ?: error("@SubTypes.Type requires name")

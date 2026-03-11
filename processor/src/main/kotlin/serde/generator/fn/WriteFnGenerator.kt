@@ -17,6 +17,7 @@ import serde.ext.collectProperties
 import serde.ext.findAnnotation
 import serde.ext.findSubTypesInfo
 import serde.ext.isBson
+import serde.ext.isEnum
 import serde.ext.isJson
 import serde.generator.call.WriteCallGenerator
 
@@ -46,7 +47,7 @@ class WriteFnGenerator(
         cls.collectProperties(resolver).forEach {
             if (it.ignore.full || (it.readOnly.json && it.readOnly.bson)) return@forEach
             val propName = "${VarNames.VALUE}.${it.name.original}"
-            val writeCall = writeCallGenerator.generate(FnNames.WRITE, it.type, CodeBlock.of(propName), it.serdeWith)
+            val writeCall = writeCallGenerator.generate(FnNames.WRITE, it.type, CodeBlock.of(propName), it.serdeWith, valueAlreadyNullChecked = it.nullable)
             if (it.nullable) {
                 fn.beginControlFlow("if (%L != null)", propName)
             }
@@ -83,8 +84,14 @@ class WriteFnGenerator(
         fn: FunSpec.Builder,
         cls: KSClassDeclaration
     ): FunSpec {
-        val (typePropName, types, fallbackType) = subTypesInfo
-        fn.beginControlFlow("%L(%N.%N?.toString())", "when", VarNames.VALUE, typePropName)
+        val (typePropName, propertyType, types, fallbackType) = subTypesInfo
+        val whenFormat = when {
+            propertyType == null -> "%L(%N.%N?.toString())"
+            propertyType.isEnum() -> if (propertyType.isMarkedNullable) "%L(%N.%N?.toString())" else "%L(%N.%N.toString())"
+            propertyType.isMarkedNullable -> "%L(%N.%N?.toString())"
+            else -> "%L(%N.%N)"
+        }
+        fn.beginControlFlow(whenFormat, "when", VarNames.VALUE, typePropName)
         types.forEach { (name, type) ->
             fn.beginControlFlow("%S ->", name)
                 .addStatement("%L.%L(%S)", VarNames.WRITER, "writeName", typePropName)

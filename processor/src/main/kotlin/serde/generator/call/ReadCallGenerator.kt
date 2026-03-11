@@ -26,7 +26,8 @@ class ReadCallGenerator(
         fnName: String,
         serdeClassName: ClassName,
         type: KSType,
-        valueArg: CodeBlock
+        valueArg: CodeBlock,
+        valueAlreadyNullChecked: Boolean
     ) {
         val readFn = resolver.getClassDeclarationByName(serdeClassName.canonicalName)?.findFunction(FnNames.READ)
         val typeArgs = when {

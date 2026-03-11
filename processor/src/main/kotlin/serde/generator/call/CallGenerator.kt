@@ -17,14 +17,22 @@ interface CallGenerator {
         fnName: String,
         type: KSType,
         valueArg: CodeBlock,
-        serdeClassName: ClassName? = null
+        serdeClassName: ClassName? = null,
+        valueAlreadyNullChecked: Boolean = false
     ): CodeBlock {
         val code = CodeBlock.builder()
         (serdeClassName ?: type.getSerdeClassName()
             .let { resolver.findStdSerdeDeclaration(it)?.toClassName() ?: it })
-            .let { generate(code, fnName, it, type, valueArg) }
+            .let { generate(code, fnName, it, type, valueArg, valueAlreadyNullChecked) }
         return code.build()
     }
 
-    fun generate(code: CodeBlock.Builder, fnName: String, serdeClassName: ClassName, type: KSType, valueArg: CodeBlock)
+    fun generate(
+        code: CodeBlock.Builder,
+        fnName: String,
+        serdeClassName: ClassName,
+        type: KSType,
+        valueArg: CodeBlock,
+        valueAlreadyNullChecked: Boolean = false
+    )
 }
