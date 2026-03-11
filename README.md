@@ -444,10 +444,10 @@ kserde/
 
 ## Requirements
 
-- Kotlin 1.9+
+- Kotlin 2.3+
 - [KSP](https://kotlinlang.org/docs/ksp-overview.html)
-- Java 17+
-- MongoDB BSON 4.10+
+- Java 25+
+- MongoDB BSON 5.5+
 
 ## Publishing (for maintainers)
 
