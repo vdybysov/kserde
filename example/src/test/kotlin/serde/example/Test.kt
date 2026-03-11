@@ -15,7 +15,7 @@ import serde.annotation.SubTypes
 data class UserProfile(
     val id: String,
     val displayName: String,
-    @PropertyName(bson = "tags_bson", json = "tags") val tags: Set<String>,
+    @param:PropertyName(bson = "tags_bson", json = "tags") val tags: Set<String>,
     val preferences: UserPreferences,
     val role: UserRole,
     val metadata: Map<UserRole, String>?
@@ -38,7 +38,7 @@ object CustomIdsSerde : serde.Serde<List<Int>> {
 }
 
 @Serde
-data class UserPreferences(@Serde(with = CustomIdsSerde::class) val favoriteIds: List<Int>)
+data class UserPreferences(@param:Serde(with = CustomIdsSerde::class) val favoriteIds: List<Int>)
 
 // =============================================================================
 // 3. Polymorphism with @SubTypes (discriminator-based deserialization)
@@ -80,7 +80,7 @@ class SystemNotification(val code: String) : Notification {
 data class ApiResponse(
     val requestId: String,
     val payload: String,
-    @PropertyIgnore val internalTraceId: String
+    @param:PropertyIgnore val internalTraceId: String
 )
 
 // =============================================================================

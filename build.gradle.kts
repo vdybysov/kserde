@@ -1,6 +1,6 @@
 plugins {
-    kotlin("jvm") version "1.9.24" apply false
-    id("com.google.devtools.ksp") version "1.9.24-1.0.20" apply false
+    kotlin("jvm") version "2.3.10" apply false
+    id("com.google.devtools.ksp") version "2.3.6" apply false
 }
 
 subprojects {
@@ -15,7 +15,7 @@ subprojects {
     }
 
     tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
-        kotlinOptions.jvmTarget = "17"
+        compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_25)
     }
 
     if (name != "example") {

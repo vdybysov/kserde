@@ -1,6 +1,6 @@
 package serde.std.kotlinx.datetime
 
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import org.bson.BsonReader
 import org.bson.BsonType
 import org.bson.BsonWriter
