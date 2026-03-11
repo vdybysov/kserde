@@ -1,6 +1,6 @@
 package serde.generator.call
 
-import com.google.devtools.ksp.getClassDeclarationByName
+import serde.ext.getClassDeclarationByName
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.symbol.KSType

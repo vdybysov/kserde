@@ -65,6 +65,58 @@ class SerdeTests : ShouldSpec({
             // Stored as "100,200"; read back as [100, 200]
             restored.favoriteIds shouldBe input
         }
+
+        should("apply custom serde on Java record (merge annotations from param, accessor, property)") {
+            val input = listOf(42, 99)
+            val record = JavaRecordWithCustomSerde(input)
+
+            val serde = registry.getSerde(JavaRecordWithCustomSerde::class.java)
+            val json = serde.toJson(record)
+            val restored = serde.fromJson(json)
+
+            // KSP may put @Serde on param, accessor, or record component — processor merges all sources
+            json shouldBe """{"ids": "42,99"}"""
+            restored.ids() shouldBe input
+        }
+
+        should("apply custom serde on Java record Map (record component annotation)") {
+            val input = linkedMapOf("a" to "1", "b" to "2")
+            val record = JavaRecordWithMapSerde(input)
+
+            val serde = registry.getSerde(JavaRecordWithMapSerde::class.java)
+            val json = serde.toJson(record)
+            val restored = serde.fromJson(json)
+
+            // CustomMapSerde stores as "k=v,k=v"
+            json shouldBe """{"steps": "a=1,b=2"}"""
+            restored.steps() shouldBe input
+        }
+
+        should("apply custom serde on Java record Map with interface (Sequence-like)") {
+            val input = linkedMapOf("x" to "1")
+            val record = SequenceLikeRecord(input)
+
+            val serde = registry.getSerde(SequenceLikeRecord::class.java)
+            val json = serde.toJson(record)
+            val restored = serde.fromJson(json)
+
+            json shouldBe """{"steps": "x=1"}"""
+            restored.steps() shouldBe input
+        }
+    }
+
+    context("Constructor argument order") {
+        should("pass constructor args in parameter order (not property order)") {
+            val obj = JavaClassWithReorderedConstructor("a", "b", "c")
+
+            val serde = registry.getSerde(JavaClassWithReorderedConstructor::class.java)
+            val json = serde.toJson(obj)
+            val restored = serde.fromJson(json)
+
+            restored.parentA shouldBe "a"
+            restored.parentB shouldBe "b"
+            restored.childProp shouldBe "c"
+        }
     }
 
     context("Polymorphism (@SubTypes)") {
@@ -101,6 +153,48 @@ class SerdeTests : ShouldSpec({
 
             json shouldBe """{"requestId": "req-123", "payload": "{\"ok\": true}"}"""
             json.contains("internalTraceId") shouldBe false // sensitive field excluded
+        }
+    }
+
+    context("Nullable fields") {
+        should("write nullable String (Kotlin data class)") {
+            val obj = NullableFields(required = "a", optional = "b", secret = "x")
+            val serde = registry.getSerde(NullableFields::class.java)
+            val json = serde.toJson(obj)
+            val bson = serde.toBson(obj)
+            val fromJson = serde.fromJson(json)
+            val fromBson = serde.fromBson(bson)
+
+            fromJson.required shouldBe "a"
+            fromJson.optional shouldBe "b"
+            fromJson.secret shouldBe "x"
+            fromBson.required shouldBe "a"
+            fromBson.optional shouldBe "b"
+            fromBson.secret shouldBe "x"
+        }
+
+        should("write nullable field named 'value' (no shadowing of parameter)") {
+            val obj = WithValueField(value = "v1", other = "v2")
+            val serde = registry.getSerde(WithValueField::class.java)
+            val json = serde.toJson(obj)
+            val fromJson = serde.fromJson(json)
+            fromJson.value shouldBe "v1"
+            fromJson.other shouldBe "v2"
+        }
+
+        should("write nullable String on Java bean (local var for smart-cast)") {
+            val obj = NullableFieldsBean().apply {
+                setRequired("a")
+                setOptional("b")
+                setSecret("x")
+            }
+            val serde = registry.getSerde(NullableFieldsBean::class.java)
+            val json = serde.toJson(obj)
+            val fromJson = serde.fromJson(json)
+
+            fromJson.required shouldBe "a"
+            fromJson.optional shouldBe "b"
+            fromJson.secret shouldBe "x"
         }
     }
 

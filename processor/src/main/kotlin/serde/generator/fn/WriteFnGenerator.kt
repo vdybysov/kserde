@@ -30,7 +30,7 @@ class WriteFnGenerator(
         val fn = FunSpec.builder(FnNames.WRITE_FIELDS)
             .addModifiers(KModifier.OVERRIDE)
             .addParameter(VarNames.WRITER, Types.WRITER)
-            .addParameter(VarNames.VALUE, cls.asStarProjectedType().toTypeName())
+            .addParameter(VarNames.OBJ, cls.asStarProjectedType().toTypeName())
         return if (cls.annotations.findAnnotation(ReadOnly::class) != null) {
             generateNotSupported(fn)
         } else {
@@ -46,10 +46,16 @@ class WriteFnGenerator(
     ): FunSpec {
         cls.collectProperties(resolver).forEach {
             if (it.ignore.full || (it.readOnly.json && it.readOnly.bson)) return@forEach
-            val propName = "${VarNames.VALUE}.${it.name.original}"
-            val writeCall = writeCallGenerator.generate(FnNames.WRITE, it.type, CodeBlock.of(propName), it.serdeWith, valueAlreadyNullChecked = it.nullable)
+            val propName = "${VarNames.OBJ}.${it.name.original}"
+            val (valueArg, valueNullChecked) = if (it.nullable) {
+                fn.addStatement("val %L = %L", it.name.original, propName)
+                it.name.original to true
+            } else {
+                propName to false
+            }
+            val writeCall = writeCallGenerator.generate(FnNames.WRITE, it.type, CodeBlock.of(valueArg), it.serdeWith, valueAlreadyNullChecked = valueNullChecked)
             if (it.nullable) {
-                fn.beginControlFlow("if (%L != null)", propName)
+                fn.beginControlFlow("if (%L != null)", valueArg)
             }
             if (it.name.bson != it.name.original ||
                 it.name.json != it.name.original ||
@@ -91,7 +97,7 @@ class WriteFnGenerator(
             propertyType.isMarkedNullable -> "%L(%N.%N?.toString())"
             else -> "%L(%N.%N)"
         }
-        fn.beginControlFlow(whenFormat, "when", VarNames.VALUE, typePropName)
+        fn.beginControlFlow(whenFormat, "when", VarNames.OBJ, typePropName)
         types.forEach { (name, type) ->
             fn.beginControlFlow("%S ->", name)
                 .addStatement("%L.%L(%S)", VarNames.WRITER, "writeName", typePropName)
@@ -105,7 +111,7 @@ class WriteFnGenerator(
                     writeCallGenerator.generate(
                         "writeFields",
                         type,
-                        CodeBlock.of("%L as %L", VarNames.VALUE, type.toClassName())
+                        CodeBlock.of("%L as %L", VarNames.OBJ, type.toClassName())
                     )
                 )
                 .endControlFlow()
@@ -113,7 +119,7 @@ class WriteFnGenerator(
         when {
             fallbackType == null -> fn.addStatement(
                 "else -> error(%P)",
-                "Unknown subtype \$${VarNames.VALUE}::class for ${cls.toClassName()}"
+                "Unknown subtype \$${VarNames.OBJ}::class for ${cls.toClassName()}"
             )
 
             else -> fn.beginControlFlow("else ->")
@@ -121,7 +127,7 @@ class WriteFnGenerator(
                     writeCallGenerator.generate(
                         "writeFields",
                         fallbackType,
-                        CodeBlock.of("%L as %L", VarNames.VALUE, fallbackType.toClassName())
+                        CodeBlock.of("%L as %L", VarNames.OBJ, fallbackType.toClassName())
                     )
                 )
                 .endControlFlow()

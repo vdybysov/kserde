@@ -15,6 +15,7 @@ import com.google.devtools.ksp.symbol.Nullability
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.ksp.toClassName
 import com.squareup.kotlinpoet.ksp.toTypeName
+import serde.FnNames
 import serde.annotation.Mutable
 import serde.annotation.PropertyIgnore
 import serde.annotation.PropertyName
@@ -23,24 +24,43 @@ import serde.annotation.SubTypes
 import serde.annotation.WriteOnly
 
 fun List<KSValueParameter>.collect(cls: KSClassDeclaration, resolver: Resolver) = map {
+    val paramName = it.name?.getShortName() ?: error("Constructor parameter has no name")
+    val paramAnnotations = it.annotations.toList()
+    val accessorAnnotations = cls.getAllFunctions()
+        .find { fn -> fn.simpleName.getShortName() == paramName }
+        ?.annotations?.toList().orEmpty()
+    val propertyAnnotations = cls.getAllProperties()
+        .find { p -> p.simpleName.getShortName() == paramName }
+        ?.annotations?.toList().orEmpty()
+    // For Java records, @Serde may appear on record component (property) but not on constructor param.
+    // Merge all sources so we don't miss the annotation.
+    val allAnnotations = (paramAnnotations + accessorAnnotations + propertyAnnotations).distinct()
     mapProperty(
         resolver,
         it.type,
-        it.name?.getShortName() ?: error("Constructor parameter has no name"),
-        annotations = cls.getAllFunctions()
-            .find { fn -> fn.simpleName == it.name }?.annotations
-            ?: it.annotations
+        paramName,
+        annotations = allAnnotations.asSequence()
     )
 }
 
 fun Sequence<KSPropertyDeclaration>.collect(cls: KSClassDeclaration, resolver: Resolver) = map {
+    val propName = it.simpleName.getShortName()
+    val propertyAnnotations = it.annotations.toList()
+    val accessorAnnotations = cls.getAllFunctions()
+        .find { fn -> fn.simpleName.getShortName() == propName }
+        ?.annotations?.toList().orEmpty()
+    // For Java records with explicit constructor, @Serde may be on record component (constructor param)
+    // but not on property/accessor. Merge param annotations from matching constructor.
+    val paramAnnotations = cls.findConstructors()
+        .flatMap { it.parameters.asSequence() }
+        .find { it.name?.getShortName() == propName }
+        ?.annotations?.toList().orEmpty()
+    val allAnnotations = (propertyAnnotations + accessorAnnotations + paramAnnotations).distinct()
     mapProperty(
         resolver,
         it.type,
-        it.simpleName.getShortName(),
-        annotations = cls.getAllFunctions()
-            .find { fn -> fn.simpleName == it.simpleName }?.annotations
-            ?: it.annotations
+        propName,
+        annotations = allAnnotations.asSequence()
     )
 }
 
@@ -111,7 +131,33 @@ data class Property(
     data class WriteOnly(val json: Boolean, val bson: Boolean)
 }
 
+/**
+ * When property has a custom serde, use its read() return type for variable declaration.
+ * Fixes Java List -> MutableList mismatch: custom serdes typically return kotlin.collections.List.
+ */
+fun Property.getEffectiveVarType(resolver: Resolver): KSType =
+    serdeWith?.let { serdeClass ->
+        resolver.getClassDeclarationByName(serdeClass.canonicalName)
+            ?.getAllFunctions()
+            ?.find { it.simpleName.getShortName() == FnNames.READ }
+            ?.returnType
+            ?.resolve()
+    } ?: type
+
 fun KSClassDeclaration.findConstructors() = getAllFunctions().filter { it.simpleName.getShortName() == "<init>" }
+
+/**
+ * Reorder properties to match constructor parameter order.
+ * For Java classes, getAllProperties() order may differ from constructor (e.g. child props before parent).
+ */
+private fun KSClassDeclaration.reorderByConstructor(allProps: List<Property>): List<Property> {
+    val constructor = findConstructors().maxByOrNull { it.parameters.size } ?: return allProps
+    val paramNames = constructor.parameters.mapNotNull { it.name?.getShortName() }
+    val propNames = allProps.map { it.name.original }.toSet()
+    if (paramNames.toSet() != propNames) return allProps
+    val byName = allProps.associateBy { it.name.original }
+    return paramNames.mapNotNull { byName[it] }
+}
 
 fun KSClassDeclaration.collectProperties(resolver: Resolver): List<Property> =
     getAllProperties()
@@ -121,12 +167,17 @@ fun KSClassDeclaration.collectProperties(resolver: Resolver): List<Property> =
         .let { allProps ->
             when {
                 annotations.findAnnotation(Mutable::class) != null -> allProps
-                primaryConstructor != null -> primaryConstructor!!.parameters.collect(this, resolver)
-                allProps.isNotEmpty() -> findConstructors()
-                    .find { it.parameters.size == allProps.size }
-                    ?.parameters
-                    ?.collect(this, resolver)
-                    ?: allProps
+                primaryConstructor != null -> {
+                    val params = primaryConstructor!!.parameters
+                    val paramNames = params.mapNotNull { it.name?.getShortName() }.toSet()
+                    val propNames = allProps.map { it.name.original }.toSet()
+                    // Java record with explicit constructor: KSP may put @Serde on record component (property)
+                    // but not on constructor param. Use property-based collect when params match.
+                    if (allProps.isNotEmpty() && paramNames == propNames) reorderByConstructor(allProps)
+                    else params.collect(this, resolver)
+                }
+                // Java record: KSP may put @Serde on record component (property) but not on constructor param.
+                allProps.isNotEmpty() -> reorderByConstructor(allProps)
 
                 else -> findConstructors()
                     .maxByOrNull { it.parameters.size }

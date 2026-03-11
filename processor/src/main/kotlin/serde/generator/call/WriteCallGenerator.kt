@@ -1,6 +1,6 @@
 package serde.generator.call
 
-import com.google.devtools.ksp.getClassDeclarationByName
+import serde.ext.getClassDeclarationByName
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.symbol.KSType
@@ -32,8 +32,9 @@ class WriteCallGenerator(
         } + type.arguments
             .let { if (type.isMap(resolver)) it.drop(1) else it }
             .map { "{ ${generate(FnNames.WRITE, it.type!!.resolve(), CodeBlock.of("it"))} }" }
-        val notNullAssertion = if (valueAlreadyNullChecked) "" else type.toNotNullAssertion()
-        val args = listOf("${valueArg}$notNullAssertion") + typeArgs
+        // When valueAlreadyNullChecked: local var inside null check — compiler smart-casts, no assertion needed
+        val valueExpr = if (valueAlreadyNullChecked) "$valueArg" else "${valueArg}${type.toNotNullAssertion()}"
+        val args = listOf(valueExpr) + typeArgs
             .let { args ->
                 resolver.getClassDeclarationByName(serdeClassName.canonicalName)
                     ?.findFunction(FnNames.WRITE)

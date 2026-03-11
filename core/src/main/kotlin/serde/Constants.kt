@@ -7,6 +7,7 @@ object VarNames {
     const val READER = "reader"
     const val WRITER = "writer"
     const val VALUE = "value"
+    const val OBJ = "obj"
     const val SERDE = "Serde"
 }
 

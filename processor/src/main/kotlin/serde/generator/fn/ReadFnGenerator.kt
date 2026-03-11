@@ -19,6 +19,7 @@ import serde.ext.SubTypesInfo
 import serde.ext.addVar
 import serde.ext.collect
 import serde.ext.collectProperties
+import serde.ext.getEffectiveVarType
 import serde.ext.findAnnotation
 import serde.ext.findSerdeAnnotation
 import serde.ext.findSubTypesInfo
@@ -112,7 +113,7 @@ class ReadFnGenerator(
 
     private fun generateRegular(cls: KSClassDeclaration, fn: FunSpec.Builder): FunSpec {
         val props = cls.collectProperties(resolver)
-        props.forEach { (type, name) -> fn.addVar(name.original, type) }
+        props.forEach { prop -> fn.addVar(prop.name.original, prop.getEffectiveVarType(resolver)) }
         fn
             .beginControlFlow("${VarNames.READER}.${BsonReader::readDocument.name}")
             .beginControlFlow("when(it)")

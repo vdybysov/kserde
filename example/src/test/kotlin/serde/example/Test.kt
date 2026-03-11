@@ -84,7 +84,24 @@ data class ApiResponse(
 )
 
 // =============================================================================
-// 5. Standard library types (Date, BigDecimal, etc.)
+// 5. Nullable fields — write must use !! for compiler (no smart-cast on property access)
+// =============================================================================
+
+@Serde
+data class NullableFields(
+    val required: String,
+    val optional: String?,
+    @param:PropertyName(bson = "secret_bson", json = "secret") val secret: String?
+)
+
+@Serde
+data class WithValueField(
+    val value: String?,
+    val other: String?
+)
+
+// =============================================================================
+// 6. Standard library types (Date, BigDecimal, etc.)
 // =============================================================================
 
 @Serde
